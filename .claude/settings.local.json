@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go mod:*)",
+      "Bash(/opt/homebrew/bin/pdftotext -layout \"/Users/kayszahidi/Desktop/5AWD/Pec/Projet Semestriel Bloc 3 \\(1\\).pdf\" /tmp/cours_pec_layout.txt)"
+    ]
+  }
+}

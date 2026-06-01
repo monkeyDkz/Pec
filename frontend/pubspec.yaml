@@ -1,0 +1,35 @@
+name: streampulse
+description: "StreamPulse - Real-time audio streaming platform"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_bloc: ^9.1.0
+  go_router: ^15.1.0
+  dio: ^5.8.0
+  just_audio: ^0.9.43
+  audio_service: ^0.18.17
+  web_socket_channel: ^3.0.2
+  flutter_secure_storage: ^9.2.4
+  json_annotation: ^4.9.0
+  equatable: ^2.0.7
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.15
+  json_serializable: ^6.9.5
+  bloc_test: ^10.0.0
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
