@@ -66,10 +66,12 @@ func (r *playlistRepository) ListByOwner(ctx context.Context, ownerID string) ([
 }
 
 func (r *playlistRepository) AddTrack(ctx context.Context, playlistID, trackID string) error {
-	err := r.db.WithContext(ctx).
-		Model(&entity.Playlist{ID: playlistID}).
-		Association("Tracks").
-		Append(&entity.Track{ID: trackID})
+	// Insert directly into the join table: Association().Append would attempt to
+	// upsert a partial Track (empty NOT NULL columns) and fail.
+	err := r.db.WithContext(ctx).Exec(
+		`INSERT INTO playlist_tracks (playlist_id, track_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
+		playlistID, trackID,
+	).Error
 	if err != nil {
 		return fmt.Errorf("add track to playlist: %w", err)
 	}
@@ -77,10 +79,10 @@ func (r *playlistRepository) AddTrack(ctx context.Context, playlistID, trackID s
 }
 
 func (r *playlistRepository) RemoveTrack(ctx context.Context, playlistID, trackID string) error {
-	err := r.db.WithContext(ctx).
-		Model(&entity.Playlist{ID: playlistID}).
-		Association("Tracks").
-		Delete(&entity.Track{ID: trackID})
+	err := r.db.WithContext(ctx).Exec(
+		`DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?`,
+		playlistID, trackID,
+	).Error
 	if err != nil {
 		return fmt.Errorf("remove track from playlist: %w", err)
 	}

@@ -10,9 +10,23 @@ jobs:
   backend:
     name: Backend (Go)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: streampulse
+          POSTGRES_PASSWORD: streampulse
+          POSTGRES_DB: streampulse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U streampulse"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     defaults:
       run:
         working-directory: backend
+    env:
+      DATABASE_URL: postgres://streampulse:streampulse@localhost:5432/streampulse?sslmode=disable
     steps:
       - uses: actions/checkout@v4
 
@@ -28,11 +42,14 @@ jobs:
       - name: Build
         run: go build ./...
 
-      - name: Test (race + coverage)
-        run: go test ./... -race -coverprofile=coverage.out -covermode=atomic
+      - name: Test (unit + integration, race + coverage)
+        run: go test ./... -tags=integration -race -coverpkg=./internal/... -coverprofile=coverage.out -covermode=atomic
 
-      - name: Coverage summary
-        run: go tool cover -func=coverage.out | tail -1
+      - name: Enforce 80% coverage (RNCP gate)
+        run: |
+          total=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | tr -d '%')
+          echo "Total coverage: ${total}%"
+          awk "BEGIN{exit !(${total} >= 80)}" || { echo "::error::coverage ${total}% is below the 80% threshold"; exit 1; }
 
       - name: Vulnerability scan
         run: |
