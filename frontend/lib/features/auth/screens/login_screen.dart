@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthAuthenticated) {
-            context.go('/streams');
+            context.go('/home');
           } else if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message)),
@@ -89,6 +89,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       );
                     },
+                  ),
+                  TextButton(
+                    onPressed: () => context.go('/register'),
+                    child: const Text("No account? Sign up"),
                   ),
                 ],
               ),
