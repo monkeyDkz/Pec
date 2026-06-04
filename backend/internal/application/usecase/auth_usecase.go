@@ -23,10 +23,12 @@ func NewAuthUseCase(userRepo repository.UserRepository, jwt *auth.JWTManager, ha
 	}
 }
 
-func (uc *AuthUseCase) Register(ctx context.Context, email, username, password string) (*entity.User, error) {
+// Register creates a new user and returns it along with a freshly issued JWT so
+// the client is authenticated immediately after sign-up.
+func (uc *AuthUseCase) Register(ctx context.Context, email, username, password string) (*entity.User, string, error) {
 	hashed, err := uc.hasher.Hash(password)
 	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
+		return nil, "", fmt.Errorf("hash password: %w", err)
 	}
 
 	user := &entity.User{
@@ -37,10 +39,15 @@ func (uc *AuthUseCase) Register(ctx context.Context, email, username, password s
 	}
 
 	if err := uc.userRepo.Create(ctx, user); err != nil {
-		return nil, fmt.Errorf("create user: %w", err)
+		return nil, "", fmt.Errorf("create user: %w", err)
 	}
 
-	return user, nil
+	token, err := uc.jwt.Generate(user.ID, string(user.Role))
+	if err != nil {
+		return nil, "", fmt.Errorf("generate token: %w", err)
+	}
+
+	return user, token, nil
 }
 
 func (uc *AuthUseCase) Login(ctx context.Context, email, password string) (string, error) {

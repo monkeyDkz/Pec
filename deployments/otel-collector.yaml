@@ -10,17 +10,20 @@ processors:
   batch:
 
 exporters:
+  # Metrics are scraped by Prometheus from this endpoint.
   prometheus:
     endpoint: "0.0.0.0:8889"
-  otlp:
-    endpoint: "loki:3100"
+  # Traces are logged by the collector (no dedicated trace backend in dev).
+  # Swap for an otlp exporter to Tempo/Jaeger in production.
+  debug:
+    verbosity: basic
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp]
+      exporters: [debug]
     metrics:
       receivers: [otlp]
       processors: [batch]

@@ -5,13 +5,23 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    env_file:
-      - ./backend/.env
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://streampulse:streampulse@postgres:5432/streampulse?sslmode=disable
+      JWT_SECRET: dev-secret-change-me
+      JWT_DURATION: 24h
+      OTEL_ENDPOINT: otel-collector:4317
+      LOG_LEVEL: info
+      ENVIRONMENT: development
+      CORS_ORIGINS: "*"
+      ADMIN_EMAIL: admin@streampulse.local
+      ADMIN_PASSWORD: admin1234
     depends_on:
       postgres:
         condition: service_healthy
       otel-collector:
         condition: service_started
+    restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
@@ -31,9 +41,11 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
     ports:
       - "4317:4317"   # gRPC OTLP
       - "4318:4318"   # HTTP OTLP
+      - "8889:8889"   # Prometheus exporter
     volumes:
       - ./deployments/otel-collector.yaml:/etc/otelcol-contrib/config.yaml
 
@@ -50,11 +62,17 @@ services:
       - "3000:3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./deployments/grafana/provisioning:/etc/grafana/provisioning
+      - ./deployments/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
 
   loki:
     image: grafana/loki:latest
+    command: ["-config.file=/etc/loki/local-config.yaml"]
     ports:
       - "3100:3100"
 

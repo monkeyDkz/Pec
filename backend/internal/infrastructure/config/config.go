@@ -2,18 +2,22 @@ package config
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Port         string `mapstructure:"PORT"`
-	DatabaseURL  string `mapstructure:"DATABASE_URL"`
-	JWTSecret    string `mapstructure:"JWT_SECRET"`
-	OTELEndpoint string `mapstructure:"OTEL_ENDPOINT"`
-	LogLevel     string `mapstructure:"LOG_LEVEL"`
-	Environment  string `mapstructure:"ENVIRONMENT"`
-	CORSOrigins  string `mapstructure:"CORS_ORIGINS"`
+	Port          string        `mapstructure:"PORT"`
+	DatabaseURL   string        `mapstructure:"DATABASE_URL"`
+	JWTSecret     string        `mapstructure:"JWT_SECRET"`
+	JWTDuration   time.Duration `mapstructure:"JWT_DURATION"`
+	OTELEndpoint  string        `mapstructure:"OTEL_ENDPOINT"`
+	LogLevel      string        `mapstructure:"LOG_LEVEL"`
+	Environment   string        `mapstructure:"ENVIRONMENT"`
+	CORSOrigins   string        `mapstructure:"CORS_ORIGINS"`
+	AdminEmail    string        `mapstructure:"ADMIN_EMAIL"`
+	AdminPassword string        `mapstructure:"ADMIN_PASSWORD"`
 }
 
 func Load() (*Config, error) {
@@ -25,6 +29,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("ENVIRONMENT", "development")
 	viper.SetDefault("OTEL_ENDPOINT", "localhost:4317")
 	viper.SetDefault("CORS_ORIGINS", "*")
+	viper.SetDefault("JWT_DURATION", "24h")
 
 	// .env file is optional — env vars take precedence
 	_ = viper.ReadInConfig()
@@ -39,6 +44,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.JWTSecret == "" {
 		return nil, fmt.Errorf("JWT_SECRET is required")
+	}
+	if cfg.JWTDuration == 0 {
+		cfg.JWTDuration = 24 * time.Hour
 	}
 
 	return &cfg, nil
