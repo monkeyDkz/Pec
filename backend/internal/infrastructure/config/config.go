@@ -31,6 +31,16 @@ func Load() (*Config, error) {
 	viper.SetDefault("CORS_ORIGINS", "*")
 	viper.SetDefault("JWT_DURATION", "24h")
 
+	// AutomaticEnv alone does NOT feed Unmarshal for keys without a default,
+	// so bind every env var explicitly (works with or without a .env file).
+	for _, key := range []string{
+		"PORT", "DATABASE_URL", "JWT_SECRET", "JWT_DURATION",
+		"OTEL_ENDPOINT", "LOG_LEVEL", "ENVIRONMENT", "CORS_ORIGINS",
+		"ADMIN_EMAIL", "ADMIN_PASSWORD",
+	} {
+		_ = viper.BindEnv(key)
+	}
+
 	// .env file is optional — env vars take precedence
 	_ = viper.ReadInConfig()
 
