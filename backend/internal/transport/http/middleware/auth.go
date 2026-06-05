@@ -12,19 +12,25 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 	jwtManager := auth.NewJWTManager(jwtSecret, 0)
 
 	return func(c *gin.Context) {
-		header := c.GetHeader("Authorization")
-		if header == "" {
+		var tokenStr string
+
+		if header := c.GetHeader("Authorization"); header != "" {
+			parts := strings.SplitN(header, " ", 2)
+			if len(parts) != 2 || parts[0] != "Bearer" {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization format"})
+				return
+			}
+			tokenStr = parts[1]
+		} else if q := c.Query("token"); q != "" {
+			// Fallback for browser media elements (audio/video) that cannot set
+			// an Authorization header — e.g. the web build of the player.
+			tokenStr = q
+		} else {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
 			return
 		}
 
-		parts := strings.SplitN(header, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization format"})
-			return
-		}
-
-		claims, err := jwtManager.Validate(parts[1])
+		claims, err := jwtManager.Validate(tokenStr)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return

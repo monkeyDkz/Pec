@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:streampulse/core/storage/secure_storage.dart';
@@ -60,10 +61,15 @@ class PlayerCubit extends Cubit<PlayerState> {
   Future<void> playStream(LiveStream stream) async {
     final token = await storage.getToken();
     emit(state.copyWith(current: stream, buffering: true));
+
+    // Browsers cannot attach an Authorization header to media elements, so on
+    // web we pass the JWT as a query parameter; native uses the header.
+    final base = streamRepository.listenUrl(stream.id);
+    final uri = Uri.parse(kIsWeb && token != null ? '$base?token=$token' : base);
     await player.setAudioSource(
       AudioSource.uri(
-        Uri.parse(streamRepository.listenUrl(stream.id)),
-        headers: token != null ? {'Authorization': 'Bearer $token'} : null,
+        uri,
+        headers: kIsWeb ? null : (token != null ? {'Authorization': 'Bearer $token'} : null),
       ),
     );
     await player.play();
