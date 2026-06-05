@@ -30,15 +30,19 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     setState(() => _loading = true);
     try {
       final p = await _playlistRepo.get(widget.id);
-      if (mounted) setState(() {
-            _playlist = p;
-            _loading = false;
-          });
+      if (mounted) {
+        setState(() {
+          _playlist = p;
+          _loading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() {
-            _error = 'Failed to load playlist';
-            _loading = false;
-          });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load playlist';
+          _loading = false;
+        });
+      }
     }
   }
 
