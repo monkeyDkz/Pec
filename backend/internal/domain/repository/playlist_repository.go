@@ -14,6 +14,7 @@ type PlaylistRepository interface {
 	ListByOwner(ctx context.Context, ownerID string) ([]entity.Playlist, error)
 	AddTrack(ctx context.Context, playlistID, trackID string) error
 	RemoveTrack(ctx context.Context, playlistID, trackID string) error
+	ReorderTracks(ctx context.Context, playlistID string, orderedTrackIDs []string) error
 }
 
 type TrackRepository interface {

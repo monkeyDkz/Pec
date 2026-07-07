@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Signaler une vulnérabilité de sécurité
+    url: mailto:contact@ecole-decode.fr
+    about: Voir SECURITY.md — ne pas ouvrir d'issue publique pour un problème de sécurité.
+  - name: 💬 Question / discussion
+    url: https://github.com/discussions
+    about: Pour les questions ouvertes plutôt que les bugs.

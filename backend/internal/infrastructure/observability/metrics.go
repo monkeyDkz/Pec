@@ -45,4 +45,20 @@ var (
 		},
 		[]string{"stream_id", "reason"},
 	)
+
+	StreamBytesTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "streampulse_stream_bytes_total",
+			Help: "Total bytes broadcast per stream (business metric)",
+		},
+		[]string{"stream_id"},
+	)
+
+	AuthLoginsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "streampulse_auth_logins_total",
+			Help: "Total login attempts, labelled by outcome",
+		},
+		[]string{"result"}, // success | invalid_credentials | error
+	)
 )

@@ -59,6 +59,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>StreamPulse a besoin du microphone pour permettre la diffusion audio en direct.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>StreamPulse a besoin d'accéder à votre bibliothèque pour téléverser des fichiers audio.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -1,0 +1,497 @@
+openapi: 3.0.3
+info:
+  title: StreamPulse API
+  version: 1.0.0
+  description: |
+    Real-time audio streaming platform — RNCP 38822 Bloc 3.
+    The streaming endpoints (`/streams/:id/publish`, `/streams/:id/listen`)
+    use chunked HTTP transfer rather than WebSocket / WebRTC.
+  contact:
+    email: contact@ecole-decode.fr
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://staging.streampulse.example
+    description: Staging
+  - url: https://streampulse.example
+    description: Production
+tags:
+  - name: auth
+  - name: users
+  - name: streams
+  - name: playlists
+  - name: tracks
+  - name: feedback
+  - name: admin
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    UserResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        username: { type: string }
+        role:
+          type: string
+          enum: [anonymous, user, broadcaster, admin]
+    AuthResponse:
+      type: object
+      properties:
+        token: { type: string }
+        user: { $ref: '#/components/schemas/UserResponse' }
+    RegisterRequest:
+      type: object
+      required: [email, username, password]
+      properties:
+        email: { type: string, format: email }
+        username: { type: string, minLength: 3, maxLength: 32 }
+        password: { type: string, minLength: 8, maxLength: 128, format: password }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+    StreamResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        broadcaster_id: { type: string, format: uuid }
+        broadcaster_username: { type: string }
+        status: { type: string, enum: [live, offline] }
+        listener_count: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateStreamRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, maxLength: 120 }
+        description: { type: string, maxLength: 1000 }
+    PlaylistResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        owner_id: { type: string, format: uuid }
+        tracks:
+          type: array
+          items: { $ref: '#/components/schemas/TrackResponse' }
+        created_at: { type: string, format: date-time }
+    CreatePlaylistRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 80 }
+        description: { type: string, maxLength: 500 }
+    TrackResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        artist: { type: string }
+        duration_seconds: { type: integer }
+        file_url: { type: string }
+    ReorderTracksRequest:
+      type: object
+      required: [track_ids]
+      properties:
+        track_ids:
+          type: array
+          items: { type: string, format: uuid }
+    FeedbackRequest:
+      type: object
+      required: [rating]
+      properties:
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, maxLength: 2000 }
+    Stats:
+      type: object
+      properties:
+        total_users: { type: integer }
+        total_broadcasters: { type: integer }
+        total_streams: { type: integer }
+        live_streams: { type: integer }
+        total_playlists: { type: integer }
+        total_tracks: { type: integer }
+        total_feedbacks: { type: integer }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200': { description: ok }
+
+  /api/v1/auth/register:
+    post:
+      tags: [auth]
+      summary: Create a new account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400':
+          description: Invalid input
+        '409':
+          description: Email or username taken
+
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      summary: Sign in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '401':
+          description: Invalid credentials
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [auth]
+      summary: Refresh JWT (sliding window)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+
+  /api/v1/users/me:
+    get:
+      tags: [users]
+      summary: Current profile
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+          description: ok
+    put:
+      tags: [users]
+      summary: Update current profile
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+                username: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+          description: ok
+    delete:
+      tags: [users]
+      summary: Delete current account (GDPR — right to erasure)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '204': { description: deleted }
+
+  /api/v1/users/me/data:
+    get:
+      tags: [users]
+      summary: Export personal data (GDPR — right of access)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: JSON export }
+
+  /api/v1/streams:
+    get:
+      tags: [streams]
+      summary: List live streams
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StreamResponse' }
+    post:
+      tags: [streams]
+      summary: Create a stream (broadcaster+)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateStreamRequest' }
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StreamResponse' }
+
+  /api/v1/streams/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [streams]
+      summary: Get a stream
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StreamResponse' }
+        '404': { description: not found }
+    delete:
+      tags: [streams]
+      summary: Delete a stream (owner or admin)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '204': { description: deleted }
+
+  /api/v1/streams/{id}/listen:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [streams]
+      summary: Subscribe to the live audio (chunked HTTP)
+      responses:
+        '200':
+          description: audio/mpeg chunked
+          content:
+            audio/mpeg: {}
+
+  /api/v1/streams/{id}/publish:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [streams]
+      summary: Publish the audio flow as broadcaster
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200': { description: stream closed normally }
+
+  /api/v1/playlists:
+    get:
+      tags: [playlists]
+      summary: List my playlists
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PlaylistResponse' }
+    post:
+      tags: [playlists]
+      summary: Create a playlist
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePlaylistRequest' }
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlaylistResponse' }
+
+  /api/v1/playlists/{id}/tracks/{trackId}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+      - in: path
+        name: trackId
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [playlists]
+      summary: Add a track to a playlist
+      security: [{ BearerAuth: [] }]
+      responses:
+        '204': { description: added }
+    delete:
+      tags: [playlists]
+      summary: Remove a track from a playlist
+      security: [{ BearerAuth: [] }]
+      responses:
+        '204': { description: removed }
+
+  /api/v1/playlists/{id}/tracks/reorder:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [playlists]
+      summary: Reorder tracks in a playlist
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReorderTracksRequest' }
+      responses:
+        '204': { description: reordered }
+
+  /api/v1/tracks:
+    get:
+      tags: [tracks]
+      summary: List tracks
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TrackResponse' }
+    post:
+      tags: [tracks]
+      summary: Upload an audio track (multipart, broadcaster+)
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, title]
+              properties:
+                file: { type: string, format: binary }
+                title: { type: string }
+                artist: { type: string }
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrackResponse' }
+
+  /api/v1/feedback:
+    post:
+      tags: [feedback]
+      summary: Submit feedback
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FeedbackRequest' }
+      responses:
+        '201': { description: created }
+
+  /api/v1/admin/stats:
+    get:
+      tags: [admin]
+      summary: Platform stats snapshot
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Stats' }
+
+  /api/v1/admin/users:
+    get:
+      tags: [admin]
+      summary: List users
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/UserResponse' }
+
+  /api/v1/admin/users/{id}/role:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [admin]
+      summary: Change a user's role
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [user, broadcaster, admin]
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+
+  /api/v1/admin/feedback:
+    get:
+      tags: [admin]
+      summary: List feedback
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: ok }
