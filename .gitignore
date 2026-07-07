@@ -5,17 +5,24 @@
 *.so
 *.dylib
 backend/api
+backend/bin/
 
-# Environment
+# Environment & secrets
 .env
 *.env
 !.env.example
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+*.iml
 
 # OS
 .DS_Store
@@ -23,6 +30,10 @@ Thumbs.db
 
 # Go
 vendor/
+coverage.out
+coverage.html
+*.test
+*.prof
 
 # Flutter
 frontend/.dart_tool/
@@ -30,9 +41,24 @@ frontend/.packages
 frontend/build/
 frontend/.flutter-plugins
 frontend/.flutter-plugins-dependencies
+frontend/coverage/
+frontend/ios/Pods/
+frontend/android/.gradle/
 
 # Docker
 docker-compose.override.yml
+
+# Uploads et stockage runtime
+uploads/
+storage/
+
+# Logs
+*.log
+logs/
+
+# Build artifacts CI
+dist/
+artifacts/
 
 # PDF specs (not code)
 *.pdf

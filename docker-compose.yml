@@ -6,12 +6,16 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - ./backend/.env
+      - ./.env
+    environment:
+      DATABASE_URL: postgres://streampulse:streampulse@postgres:5432/streampulse?sslmode=disable
+      OTEL_ENDPOINT: otel-collector:4317
     depends_on:
       postgres:
         condition: service_healthy
       otel-collector:
         condition: service_started
+    restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
@@ -31,11 +35,16 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
     ports:
       - "4317:4317"   # gRPC OTLP
       - "4318:4318"   # HTTP OTLP
+      - "8889:8889"   # Prometheus exporter
     volumes:
       - ./deployments/otel-collector.yaml:/etc/otelcol-contrib/config.yaml
+    depends_on:
+      - tempo
+      - loki
 
   prometheus:
     image: prom/prometheus:latest
@@ -43,6 +52,35 @@ services:
       - "9090:9090"
     volumes:
       - ./deployments/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./deployments/prometheus-alerts.yml:/etc/prometheus/alerts.yml
+
+  loki:
+    image: grafana/loki:latest
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./deployments/loki.yaml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+
+  promtail:
+    image: grafana/promtail:latest
+    command: -config.file=/etc/promtail/config.yaml
+    volumes:
+      - ./deployments/promtail.yaml:/etc/promtail/config.yaml
+      - /var/run/docker.sock:/var/run/docker.sock
+      - promtail_positions:/tmp
+    depends_on:
+      - loki
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    command: ["-config.file=/etc/tempo.yaml"]
+    ports:
+      - "3200:3200"   # Tempo HTTP
+    volumes:
+      - ./deployments/tempo.yaml:/etc/tempo.yaml
+      - tempo_data:/var/tempo
 
   grafana:
     image: grafana/grafana:latest
@@ -50,14 +88,20 @@ services:
       - "3000:3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
     volumes:
       - grafana_data:/var/lib/grafana
-
-  loki:
-    image: grafana/loki:latest
-    ports:
-      - "3100:3100"
+      - ./deployments/grafana/provisioning:/etc/grafana/provisioning
+      - ./deployments/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
 
 volumes:
   postgres_data:
   grafana_data:
+  loki_data:
+  tempo_data:
+  promtail_positions:

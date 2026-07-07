@@ -8,20 +8,52 @@ receivers:
 
 processors:
   batch:
+    timeout: 5s
+    send_batch_size: 1024
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+  resource:
+    attributes:
+      - key: service.namespace
+        value: streampulse
+        action: upsert
 
 exporters:
+  # Traces → Tempo
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # Metrics → Prometheus pull endpoint (scraped by prometheus.yml)
   prometheus:
-    endpoint: "0.0.0.0:8889"
-  otlp:
-    endpoint: "loki:3100"
+    endpoint: 0.0.0.0:8889
+    send_timestamps: true
+    metric_expiration: 5m
+
+  # Logs → Loki via OTLP-HTTP
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+
+  # Debug, useful in dev to inspect what's flowing
+  debug:
+    verbosity: basic
 
 service:
+  telemetry:
+    logs:
+      level: info
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp/tempo]
     metrics:
       receivers: [otlp]
-      processors: [batch]
+      processors: [memory_limiter, resource, batch]
       exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlphttp/loki]

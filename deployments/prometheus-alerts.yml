@@ -1,0 +1,82 @@
+groups:
+  - name: streampulse-technical
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(streampulse_http_requests_total{status=~"5.."}[5m]))
+          /
+          sum(rate(streampulse_http_requests_total[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: streampulse
+        annotations:
+          summary: "Taux d'erreur 5xx > 5 % sur 5 min"
+          description: "Le taux d'erreur HTTP 5xx dépasse 5 % depuis 5 minutes. Vérifier les logs Loki et les traces Tempo."
+
+      - alert: HighAPILatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(streampulse_http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 1
+        for: 10m
+        labels:
+          severity: warning
+          team: streampulse
+        annotations:
+          summary: "Latence p95 API > 1 s"
+          description: "La latence p95 dépasse 1 seconde depuis 10 minutes."
+
+      - alert: APIDown
+        expr: up{job="streampulse-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: streampulse
+        annotations:
+          summary: "L'API StreamPulse ne répond plus"
+          description: "Prometheus ne parvient plus à scraper l'API depuis 2 minutes."
+
+  - name: streampulse-business
+    interval: 30s
+    rules:
+      - alert: ExcessiveAbruptDisconnections
+        expr: |
+          sum(increase(streampulse_stream_disconnections_total[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          team: streampulse
+          metric_type: business
+        annotations:
+          summary: "Pic de déconnexions brutales (> 30 en 5 min)"
+          description: "Indicateur métier (Ce3.5.2). Vérifier la qualité réseau des broadcasters et listeners."
+
+      - alert: NoActiveStreamsDuringBusinessHours
+        expr: |
+          streampulse_active_streams == 0
+          and on() (hour() > 7 and hour() < 22)
+        for: 30m
+        labels:
+          severity: info
+          team: streampulse
+          metric_type: business
+        annotations:
+          summary: "Aucun stream actif en heures ouvrées"
+          description: "Indicateur métier informationnel — confirmer que c'est attendu."
+
+      - alert: HighLoginFailureRate
+        expr: |
+          sum(rate(streampulse_auth_logins_total{result="invalid_credentials"}[5m]))
+          /
+          clamp_min(sum(rate(streampulse_auth_logins_total[5m])), 0.0001)
+          > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: streampulse
+        annotations:
+          summary: "Plus de 50 % des tentatives de login échouent"
+          description: "Possible attaque par force brute. Vérifier le rate limiter et envisager un blocage IP."

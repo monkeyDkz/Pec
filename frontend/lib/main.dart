@@ -11,29 +11,40 @@ void main() {
   final apiClient = ApiClient();
   final authRepository = AuthRepository(apiClient: apiClient);
 
-  runApp(StreamPulseApp(authRepository: authRepository));
+  runApp(StreamPulseApp(
+    apiClient: apiClient,
+    authRepository: authRepository,
+  ));
 }
 
 class StreamPulseApp extends StatelessWidget {
+  final ApiClient apiClient;
   final AuthRepository authRepository;
 
-  const StreamPulseApp({super.key, required this.authRepository});
+  const StreamPulseApp({
+    super.key,
+    required this.apiClient,
+    required this.authRepository,
+  });
 
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => AuthBloc(authRepository: authRepository)..add(AuthCheckRequested()),
+          create: (_) =>
+              AuthBloc(authRepository: authRepository)..add(AuthCheckRequested()),
         ),
       ],
-      child: MaterialApp.router(
-        title: 'StreamPulse',
-        theme: AppTheme.light,
-        darkTheme: AppTheme.dark,
-        themeMode: ThemeMode.system,
-        routerConfig: AppRouter.router,
-        debugShowCheckedModeBanner: false,
+      child: Builder(
+        builder: (context) => MaterialApp.router(
+          title: 'StreamPulse',
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.system,
+          routerConfig: AppRouter.create(apiClient: apiClient),
+          debugShowCheckedModeBanner: false,
+        ),
       ),
     );
   }
